@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kondomoduch Live Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Toxic Green Theme */
+        :root {
+            --toxic-green: #39ff14;
+            --dark-green: #0a2e0a;
+            --dark-bg: #050505;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--dark-bg);
+            color: #fff;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Zabrání scrollování na mobilu */
+        }
+        
+        .font-edgy {
+            font-family: 'Oswald', sans-serif;
+            text-transform: uppercase;
+        }
+
+        /* Neon Glow Effects */
+        .neon-text {
+            color: var(--toxic-green);
+            text-shadow: 0 0 5px var(--toxic-green), 0 0 15px var(--toxic-green);
+        }
+        
+        .neon-box {
+            box-shadow: 0 0 10px rgba(57, 255, 20, 0.3), inset 0 0 10px rgba(57, 255, 20, 0.1);
+            border: 2px solid var(--toxic-green);
+        }
+
+        /* Progress Bar Option Styling */
+        .vote-option {
+            position: relative;
+            background: rgba(10, 46, 10, 0.6);
+            border: 1px solid rgba(57, 255, 20, 0.3);
+            border-radius: 4px;
+            overflow: hidden;
+            transition: transform 0.1s, border-color 0.3s;
+            margin-bottom: 8px;
+        }
+        
+        .vote-option.winning {
+            border-color: #fff;
+            box-shadow: 0 0 20px rgba(57, 255, 20, 0.8);
+            transform: scale(1.02);
+            z-index: 10;
+        }
+
+        .vote-fill {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: linear-gradient(90deg, rgba(10,46,10,0.8) 0%, rgba(57,255,20,0.6) 100%);
+            width: 0%;
+            transition: width 0.3s ease-out;
+            z-index: 1;
+        }
+
+        .vote-content {
+            position: relative;
+            z-index: 2;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .vote-letter {
+            font-size: 1.5rem;
+            font-weight: 900;
+            margin-right: 12px;
+            color: var(--toxic-green);
+            text-shadow: 0 0 5px rgba(57, 255, 20, 0.8);
+        }
+
+        /* Mascot Floating Animation */
+        .mascot-container {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 100px;
+            height: 100px;
+            z-index: 40;
+            animation: float 4s ease-in-out infinite;
+            filter: drop-shadow(0 0 15px rgba(57,255,20,0.5));
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-15px) rotate(5deg); }
+            100% { transform: translateY(0px) rotate(0deg); }
+        }
+
+        /* Scanline Overlay for grungy look */
+        .scanlines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 50;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col">
+
+    <!-- SETUP OVERLAY -->
+    <div id="setup-overlay" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black bg-opacity-95 p-6 backdrop-blur-sm">
+        <img src="1000096389.png" alt="Ghost" class="w-32 h-32 mb-6" style="filter: drop-shadow(0 0 20px #39ff14);">
+        <h2 class="font-edgy text-4xl neon-text mb-6 text-center">Nastavení pekla</h2>
+        <div class="w-full max-w-sm flex flex-col gap-4">
+            <label for="theme-input" class="text-green-500 font-bold font-edgy tracking-wide">Téma vaší mizérie:</label>
+            <input type="text" id="theme-input" value="Loupež století" class="w-full bg-gray-900 border-2 border-green-600 rounded p-3 text-white focus:outline-none focus:border-green-400 font-bold transition-colors">
+            <button id="start-btn" class="w-full bg-green-600 hover:bg-green-500 text-black font-edgy font-bold text-2xl py-4 rounded mt-4 neon-box transition-all shadow-[0_0_20px_rgba(57,255,20,0.6)]">ZAČÍT HRU</button>
+        </div>
+    </div>
+
+    <!-- TOP 2/3: GAME AREA (67vh) -->
+    <div id="game-area" class="h-[67vh] w-full relative flex flex-col p-4 overflow-hidden" style="background: radial-gradient(circle at top, #0a2e0a 0%, #000 80%); border-bottom: 2px solid #39ff14;">
+        <div class="scanlines"></div>
+
+        <!-- Floating Mascot -->
+        <div class="mascot-container">
+            <img src="1000096389.png" alt="Sarcastic Ghost" class="w-full h-full object-contain">
+        </div>
+
+        <!-- Header -->
+        <div class="w-full flex justify-between items-start z-10">
+            <div class="flex flex-col max-w-[70%]">
+                <span id="round-badge" class="font-edgy text-sm text-green-500 tracking-widest bg-black px-2 py-1 border border-green-800 rounded inline-block w-max mb-1">KOLO 1</span>
+                <span id="topic-display" class="text-xs text-gray-400 uppercase font-bold truncate">Téma: N/A</span>
+            </div>
+            <div class="text-right bg-black bg-opacity-60 px-2 py-1 rounded border border-gray-800">
+                <span class="text-[10px] text-gray-500 block uppercase">Hlasy</span>
+                <div class="flex items-center gap-2 justify-end">
+                    <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                    <span id="total-votes-display" class="font-bold text-green-400">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Story Text -->
+        <div class="w-full flex-grow flex items-center justify-center text-center px-2 py-4 z-10 relative">
+            <h1 id="main-text" class="text-xl sm:text-2xl font-bold text-gray-100 drop-shadow-md leading-snug">
+                Připravuju váš pohřeb...
+            </h1>
+            
+            <!-- Result Overlay -->
+            <div id="result-overlay" class="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-95 z-30 hidden backdrop-blur-sm border-2 border-green-500 rounded-lg">
+                <h2 id="result-title" class="font-edgy text-4xl neon-text mb-2 text-center">KONEC ČASU!</h2>
+                <p id="result-desc" class="text-lg text-center mb-6 text-gray-300 font-bold px-4">Duch říká: Máme tu vítěze...</p>
+                <div id="result-winner-box" class="font-edgy text-6xl text-black font-bold p-6 border-4 border-green-400 rounded bg-green-500 shadow-[0_0_30px_rgba(57,255,20,0.8)]">
+                    A
+                </div>
+            </div>
+        </div>
+
+        <!-- Voting Options -->
+        <div id="options-container" class="w-full flex flex-col z-10 pb-2">
+            <!-- Vygenerováno pomocí JS -->
+        </div>
+
+        <!-- Timer -->
+        <div class="w-full z-10 flex items-center gap-3 pt-2 border-t border-green-900 mt-2">
+            <div class="w-full bg-black border border-green-900 rounded h-3 overflow-hidden">
+                <div id="timer-bar" class="bg-green-500 h-full w-full transition-all duration-1000 linear shadow-[0_0_10px_#39ff14]"></div>
+            </div>
+            <div id="timer-text" class="font-edgy font-bold text-2xl w-10 text-right text-green-400">60</div>
+        </div>
+    </div>
+
+    <!-- BOTTOM 1/3: EMPTY AREA FOR TIKTOK CHAT OVERLAY (33vh) -->
+    <!-- ZDE NESMÍ BÝT ŽÁDNÉ UI - ČISTÁ ČERNÁ -->
+    <div id="chat-area" class="h-[33vh] w-full bg-black relative">
+        <p class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-gray-900 text-xs font-edgy tracking-widest select-none pointer-events-none text-center">
+            ZÓNA PRO CHAT
+        </p>
+    </div>
+
+    <script>
+        /**
+         * HERNÍ STAV
+         */
+        let currentRound = 0;
+        let roundActive = false;
+        let timeLeft = 0;
+        let timerInterval = null;
+        let simulationInterval = null;
+        
+        let gameTheme = "Loupež století"; 
+        let isTieBreaker = false;
+        let activeOptions = ['A', 'B', 'C', 'D'];
+        let currentScenario = null;
+        
+        let votes = { A: 0, B: 0, C: 0, D: 0 };
+        let totalVotes = 0;
+        let voters = new Set(); // 1 hlas na uživatele per kolo
+
+        // DOM Elements
+        const ui = {
+            setupOverlay: document.getElementById('setup-overlay'),
+            themeInput: document.getElementById('theme-input'),
+            startBtn: document.getElementById('start-btn'),
+            roundBadge: document.getElementById('round-badge'),
+            topicDisplay: document.getElementById('topic-display'),
+            totalVotesDisplay: document.getElementById('total-votes-display'),
+            mainText: document.getElementById('main-text'),
+            optionsContainer: document.getElementById('options-container'),
+            timerText: document.getElementById('timer-text'),
+            timerBar: document.getElementById('timer-bar'),
+            resultOverlay: document.getElementById('result-overlay'),
+            resultTitle: document.getElementById('result-title'),
+            resultDesc: document.getElementById('result-desc'),
+            resultWinnerBox: document.getElementById('result-winner-box')
+        };
+
+        /**
+         * LOKÁLNÍ GENERÁTOR SCÉNÁŘŮ (Nahrazuje API)
+         */
+        const mockEvents = [
+            "No to mě poser, narazili jsme na zamčený ocelový dveře. Co s tím, experti?",
+            "Skvělý. Spustil se alarm a řve to tu jak na lesy. Nápady?",
+            "Někdo k nám běží chodbou a nevypadá, že nám nese pizzu.",
+            "Ztratili jsme signál. Jsme tu úplně odříznutí, přesně jak jsem čekal.",
+            "Do prdele, ten sejf má úplně jinej kód, než jsme měli slíbeno.",
+            "Hele, na zemi leží nějakej podezřelej svítící kufřík. Sahat nebo nesahat?",
+            "Strop se začíná pomalu snižovat. Doufám, že máte rádi placky."
+        ];
+
+        const mockChoices = [
+            ["Rozkopnout to", "Najít klíče", "Rozbrečet se", "Zavolat mámě"],
+            ["Zastřelit to", "Zdrhnout", "Udělat ze sebe debila", "Zkusit to okecat"],
+            ["Použít C4", "Schovat se do krabice", "Hrát mrtvého", "Začít tancovat"],
+            ["Sežrat to", "Vyhodit to z okna", "Otevřít to zubama", "Prodat to na darkwebu"],
+            ["Udělat díru do zdi", "Plazit se ventilačkou", "Vzít rukojmí", "Tvrdit, že jsme údržba"]
+        ];
+
+        function generateMockScenario() {
+            // První kolo zmíní téma, další jsou náhodné
+            let text = "";
+            if (currentRound === 1) {
+                text = `Takže, vaše slavná akce "${gameTheme}" začíná. Hned na začátku se to samozřejmě muselo posrat. Našli vás. Co teď?`;
+            } else {
+                text = mockEvents[Math.floor(Math.random() * mockEvents.length)];
+            }
+
+            const chosenOptions = mockChoices[Math.floor(Math.random() * mockChoices.length)];
+
+            return {
+                text: text,
+                options: {
+                    A: chosenOptions[0],
+                    B: chosenOptions[1],
+                    C: chosenOptions[2],
+                    D: chosenOptions[3]
+                }
+            };
+        }
+
+        /**
+         * TEXT TO SPEECH (Sarkastický hlas)
+         */
+        function speakText(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'cs-CZ';
+                utterance.rate = 1.1;
+                utterance.pitch = 0.8; // Hlubší hlas pro ducha
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        /**
+         * HERNÍ LOGIKA
+         */
+        function startRound() {
+            if (!isTieBreaker) {
+                currentRound++;
+                currentScenario = generateMockScenario();
+            }
+            
+            ui.roundBadge.innerText = isTieBreaker ? 'ROZSTŘEL!' : `KOLO ${currentRound}`;
+            ui.topicDisplay.innerText = `Téma: ${gameTheme}`;
+            
+            // Reset stavu hlasování
+            votes = { A: 0, B: 0, C: 0, D: 0 };
+            totalVotes = 0;
+            voters.clear();
+            updateVotesUI();
+            
+            ui.mainText.innerText = currentScenario.text;
+            
+            // Příprava audia (přidání hlášky)
+            let speechPrefix = isTieBreaker ? "Nerozhodně, vy kreténi. Rychlej rozstřel! " : "Duch říká: ";
+            let textToRead = speechPrefix + currentScenario.text + " . ";
+            
+            // Renderování možností
+            ui.optionsContainer.innerHTML = '';
+            for (const [key, value] of Object.entries(currentScenario.options)) {
+                if (isTieBreaker && !activeOptions.includes(key)) continue;
+                
+                textToRead += `${key}, ${value}. `;
+
+                const optHtml = `
+                    <div id="opt-${key}" class="vote-option w-full flex-1">
+                        <div id="fill-${key}" class="vote-fill"></div>
+                        <div class="vote-content">
+                            <div class="flex items-center">
+                                <span class="vote-letter">${key}</span>
+                                <span class="font-bold text-sm text-gray-200 drop-shadow-md truncate max-w-[200px]">${value}</span>
+                            </div>
+                            <span id="count-${key}" class="font-edgy font-bold text-green-400">0%</span>
+                        </div>
+                    </div>
+                `;
+                ui.optionsContainer.insertAdjacentHTML('beforeend', optHtml);
+            }
+
+            speakText(textToRead);
+
+            // Nastavení času
+            timeLeft = isTieBreaker ? 30 : 60;
+            roundActive = true;
+            updateTimerUI();
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerUI();
+                if (timeLeft <= 0) endRound();
+            }, 1000);
+
+const ws = new WebSocket('wss://tiktok-chat-server-dilt.onrender.com');
+
+ws.onopen = () => {
+    console.log("Propojeno s reálným TikTok chatem!");
+};
+
+ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    handleIncomingChat(data.username, data.message);
+};
+        }
+
+        function endRound() {
+            roundActive = false;
+            clearInterval(timerInterval);
+            clearInterval(simulationInterval);
+            
+            let maxVotes = -1;
+            let currentTiedOptions = [];
+            
+            for (const key of activeOptions) {
+                if (votes[key] > maxVotes) {
+                    maxVotes = votes[key];
+                    currentTiedOptions = [key];
+                } else if (votes[key] === maxVotes) {
+                    currentTiedOptions.push(key);
+                }
+            }
+
+            // Pokud je shoda u 2 a více a někdo vůbec hlasoval -> ROZSTŘEL
+            if (currentTiedOptions.length > 1 && totalVotes > 0) {
+                isTieBreaker = true;
+                activeOptions = currentTiedOptions;
+                
+                ui.resultTitle.innerText = "SHODA!";
+                ui.resultTitle.classList.replace('text-green-500', 'text-yellow-500');
+                ui.resultDesc.innerText = "Neshodli jste se. Zkusíme to znova jen se dvěma!";
+                ui.resultWinnerBox.innerText = activeOptions.join(" vs ");
+                ui.resultWinnerBox.className = "font-edgy text-5xl text-black font-bold p-4 border-4 border-yellow-400 rounded bg-yellow-500 shadow-[0_0_30px_rgba(234,179,8,0.8)]";
+                
+                ui.resultOverlay.classList.remove('hidden');
+                speakText("Jste neschopný se dohodnout. Bleskovej rozstřel začíná.");
+
+                setTimeout(() => {
+                    ui.resultOverlay.classList.add('hidden');
+                    startRound();
+                }, 4000);
+                return;
+            }
+
+            // Konec kola, máme vítěze
+            let winningLetter = currentTiedOptions[0] || activeOptions[0];
+            isTieBreaker = false;
+            activeOptions = ['A', 'B', 'C', 'D'];
+
+            document.getElementById(`opt-${winningLetter}`).classList.add('winning');
+
+            ui.resultTitle.innerText = "ROZHODNUTO!";
+            ui.resultTitle.className = "font-edgy text-4xl neon-text mb-2 text-center";
+            ui.resultDesc.innerText = `Vybrali jste "${currentScenario.options[winningLetter]}". Budiž vám země lehká.`;
+            ui.resultWinnerBox.innerText = winningLetter;
+            ui.resultWinnerBox.className = "font-edgy text-6xl text-black font-bold p-6 border-4 border-green-400 rounded bg-green-500 shadow-[0_0_30px_rgba(57,255,20,0.8)]";
+            
+            ui.resultOverlay.classList.remove('hidden');
+            speakText(`Konec. Zvolili jste ${winningLetter}. Budu se vám smát, až to nevyjde.`);
+
+            setTimeout(() => {
+                ui.resultOverlay.classList.add('hidden');
+                startRound(); // Jdeme hned na další kolo
+            }, 6000);
+        }
+
+        /**
+         * UI UPDATE FUNKCE
+         */
+        function updateTimerUI() {
+            ui.timerText.innerText = timeLeft;
+            const maxTime = isTieBreaker ? 30 : 60;
+            const percentage = (timeLeft / maxTime) * 100;
+            ui.timerBar.style.width = `${percentage}%`;
+            
+            if (timeLeft <= 10) {
+                ui.timerText.classList.add('text-red-500', 'animate-pulse');
+                ui.timerText.classList.remove('text-green-400');
+                ui.timerBar.classList.add('bg-red-500');
+                ui.timerBar.classList.remove('bg-green-500');
+            } else {
+                ui.timerText.classList.remove('text-red-500', 'animate-pulse');
+                ui.timerText.classList.add('text-green-400');
+                ui.timerBar.classList.remove('bg-red-500');
+                ui.timerBar.classList.add('bg-green-500');
+            }
+        }
+
+        function updateVotesUI() {
+            ui.totalVotesDisplay.innerText = totalVotes;
+            
+            for (const key of activeOptions) {
+                const countEl = document.getElementById(`count-${key}`);
+                const fillEl = document.getElementById(`fill-${key}`);
+                
+                if (countEl && fillEl) {
+                    const count = votes[key];
+                    const percentage = totalVotes === 0 ? 0 : Math.round((count / totalVotes) * 100);
+                    
+                    countEl.innerText = `${percentage}%`;
+                    fillEl.style.width = `${percentage}%`;
+                }
+            }
+        }
+
+        /**
+         * SIMULACE TIKTOK CHATU
+         */
+        function startChatSimulation() {
+            simulationInterval = setInterval(() => {
+                if (!roundActive) return;
+                
+                const randomUser = `Zivocich_${Math.floor(Math.random() * 10000)}`;
+                
+                if (!voters.has(randomUser)) {
+                    voters.add(randomUser);
+                    
+                    const randomChoiceIndex = Math.floor(Math.random() * activeOptions.length);
+                    let vote = activeOptions[randomChoiceIndex];
+                    
+                    // Mírně zvýhodníme jednu volbu ať nevzniká shoda pokaždé
+                    if (!isTieBreaker && Math.random() < 0.15) {
+                        vote = activeOptions[0];
+                    }
+
+                    if (votes[vote] !== undefined) {
+                        votes[vote]++;
+                        totalVotes++;
+                        updateVotesUI();
+                    }
+                }
+            }, Math.random() * 400 + 100); // Rychlejší přísun hlasů
+        }
+
+        // Tlačítko START
+        ui.startBtn.addEventListener('click', () => {
+            const theme = ui.themeInput.value.trim();
+            if (theme) gameTheme = theme;
+            
+            ui.setupOverlay.classList.add('hidden');
+            
+            // Odemknutí audia
+            const initAudio = new SpeechSynthesisUtterance('Připraveno.');
+            initAudio.volume = 0;
+            window.speechSynthesis.speak(initAudio);
+
+            setTimeout(() => {
+                startRound();
+            }, 1000);
+        });
+
+    </script>
+</body>
+</html>
