@@ -8,7 +8,7 @@ const server = app.listen(port, () => console.log("Server běží na portu " + p
 
 const wss = new WebSocket.Server({ server });
 
-const tiktokUsername = "kdo.ses.tvl"; 
+const tiktokUsername = "mojejmeno24"; 
 const tiktokLiveConnection = new WebcastPushConnection(tiktokUsername);
 
 tiktokLiveConnection.connect().then(state => {
